@@ -1,38 +1,38 @@
-use std::collections::HashMap;
+use std::collections::HashSet;
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Point {
     x: i32,
     y: i32,
 }
 
-fn deliver_presents(plan: &str) -> HashMap<Point, u32> {
-    let mut current_pos = Point { x: 0, y: 0 };
-    let mut visits = HashMap::new();
-    visits.insert(current_pos.clone(), 1);
-    for char in plan.chars() {
+fn deliver_presents(plan: &str, num_santas: usize) -> u32 {
+    if num_santas == 0 {
+        return 0;
+    }
+    let mut santas = vec![Point { x: 0, y: 0 }; num_santas];
+    let mut visited = HashSet::new();
+    visited.insert(Point { x: 0, y: 0 });
+    for (i, char) in plan.chars().enumerate() {
+        let mut pos = &mut santas[i % num_santas];
         match char {
-            '<' => current_pos.x -= 1,
-            '>' => current_pos.x += 1,
-            'v' => current_pos.y -= 1,
-            '^' => current_pos.y += 1,
+            '<' => pos.x -= 1,
+            '>' => pos.x += 1,
+            'v' => pos.y -= 1,
+            '^' => pos.y += 1,
             _ => (),
         }
-        visits.insert(
-            current_pos.clone(),
-            match visits.get(&current_pos) {
-                Some(n) => n + 1,
-                None => 1,
-            },
-        );
+        visited.insert(pos.clone());
     }
-    visits
+    visited.len() as u32
 }
 
 fn main() {
     let input = std::fs::read_to_string("input.txt").unwrap();
-    let visits = deliver_presents(&input);
-    println!("{} houses with at least one present", visits.keys().count());
+    let santa_visits = deliver_presents(&input, 1);
+    let santa_and_robot_visits = deliver_presents(&input, 2);
+    println!("Santa visits {} houses", santa_visits);
+    println!("Santa and Robot visit {} houses", santa_and_robot_visits);
 }
 
 #[cfg(test)]
@@ -40,9 +40,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test() {
-        assert_eq!(deliver_presents(">").keys().count(), 2);
-        assert_eq!(deliver_presents("^>v<").keys().count(), 4);
-        assert_eq!(deliver_presents("^v^v^v^v^v").keys().count(), 2);
+    fn test_santa_alone() {
+        assert_eq!(deliver_presents("^v", 1), 2);
+        assert_eq!(deliver_presents("^>v<", 1), 4);
+        assert_eq!(deliver_presents("^v^v^v^v^v", 1), 2);
+    }
+
+    #[test]
+    fn test_santa_and_robot() {
+        assert_eq!(deliver_presents("^v", 2), 3);
+        assert_eq!(deliver_presents("^>v<", 2), 3);
+        assert_eq!(deliver_presents("^v^v^v^v^v", 2), 11);
     }
 }
