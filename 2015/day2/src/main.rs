@@ -3,15 +3,9 @@ use itertools::Itertools;
 
 fn paper_for_present(l: u32, w: u32, h: u32) -> u32 {
     let (area1, area2, area3) = (l * w, w * h, h * l);
-    let slack = {
-        if area1 < area2 && area1 < area3 {
-            area1
-        } else if area2 < area3 {
-            area2
-        } else {
-            area3
-        }
-    };
+    let slack = sorted(vec![area1, area2, area3].into_iter())
+        .next()
+        .unwrap();
     let paper = 2 * area1 + 2 * area2 + 2 * area3 + slack;
     paper
 }
