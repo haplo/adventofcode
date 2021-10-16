@@ -12,7 +12,7 @@ fn find_solution(secret: String) -> Solution {
     loop {
         let attempt = secret.clone() + &n.to_string();
         let digest = md5::compute(attempt.clone().into_bytes());
-        if (digest.0[0] & 0xff == 0) && (digest.0[1] & 0xff == 0) && (digest.0[2] & 0xf0 == 0) {
+        if (digest.0[0] & 0xff == 0) && (digest.0[1] & 0xff == 0) && (digest.0[2] & 0xff == 0) {
             return Solution {
                 nonce: n,
                 attempt: attempt,
