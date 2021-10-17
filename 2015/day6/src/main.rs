@@ -24,7 +24,8 @@ struct Instruction {
 }
 
 impl Instruction {
-    fn execute(&self, grid: &mut BitBox) {
+    // Part 1: lights are on/off binary
+    fn execute_part1(&self, grid: &mut BitBox) {
         let from_x = self.from.x;
         let to_x = self.to.x;
         for y in self.from.y..self.to.y + 1 {
@@ -34,6 +35,26 @@ impl Instruction {
                 Operation::TurnOn => grid.as_mut_bitslice()[i..j].set_all(true),
                 Operation::TurnOff => grid.as_mut_bitslice()[i..j].set_all(false),
                 Operation::Toggle => grid.as_mut_bitslice()[i..j].for_each(|_, b| !b),
+            }
+        }
+    }
+
+    // Part 2: lights have integer brightness
+    fn execute_part2(&self, grid: &mut Vec<u8>) {
+        let from_x = self.from.x;
+        let to_x = self.to.x;
+        for y in self.from.y..self.to.y + 1 {
+            let i: usize = y * MAX_X + from_x;
+            let j: usize = y * MAX_X + to_x + 1;
+            let slice = grid[i..j].iter_mut();
+            match self.op {
+                Operation::TurnOn => slice.for_each(|v| *v += 1),
+                Operation::TurnOff => slice.for_each(|v| {
+                    if *v > 0 {
+                        *v -= 1;
+                    }
+                }),
+                Operation::Toggle => slice.for_each(|v| *v += 2),
             }
         }
     }
@@ -92,14 +113,21 @@ fn parse_coordinates(s: &str) -> Result<Coordinate, &str> {
 
 fn main() {
     let input = std::fs::read_to_string("input.txt").unwrap();
-    let mut grid = bitbox![0; MAX_X*MAX_Y];
+    let mut grid_part1 = bitbox![0; MAX_X*MAX_Y];
+    let mut grid_part2: Vec<u8> = vec![0; MAX_X * MAX_Y];
     for (i, line) in input.lines().enumerate() {
         let instruction =
             parse_into_instruction(line).expect(&format!("Line {} has bad format", i));
-        instruction.execute(&mut grid);
+        instruction.execute_part1(&mut grid_part1);
+        instruction.execute_part2(&mut grid_part2);
     }
-    let turned_on = grid.count_ones();
-    println!("{} lights are lit", turned_on);
+    let turned_on: usize = grid_part1.count_ones();
+    let total_brightness: u32 = grid_part2.iter().fold(0 as u32, |acc, n| acc + (*n as u32));
+    println!("{} lights are lit following Part 1 instructions", turned_on);
+    println!(
+        "Total brightness is {} following Part 2 instructions",
+        total_brightness
+    );
 }
 
 #[cfg(test)]
@@ -107,14 +135,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_instruction_execute() {
+    fn test_instruction_execute_part1() {
         let mut grid = bitbox![0; MAX_X*MAX_Y];
         Instruction {
             op: Operation::TurnOff,
             from: Coordinate { x: 0, y: 0 },
             to: Coordinate { x: 10, y: 10 },
         }
-        .execute(&mut grid);
+        .execute_part1(&mut grid);
         assert_eq!(grid.count_ones(), 0);
         assert_eq!(grid.count_zeros(), 1_000_000);
         Instruction {
@@ -122,7 +150,7 @@ mod tests {
             from: Coordinate { x: 50, y: 100 },
             to: Coordinate { x: 550, y: 600 },
         }
-        .execute(&mut grid);
+        .execute_part1(&mut grid);
         assert_eq!(grid.count_ones(), 251_001);
         assert_eq!(grid.count_zeros(), 748_999);
         Instruction {
@@ -130,9 +158,41 @@ mod tests {
             from: Coordinate { x: 0, y: 0 },
             to: Coordinate { x: 999, y: 999 },
         }
-        .execute(&mut grid);
+        .execute_part1(&mut grid);
         assert_eq!(grid.count_ones(), 748_999);
         assert_eq!(grid.count_zeros(), 251_001);
+    }
+
+    #[test]
+    fn test_instruction_execute_part2() {
+        let mut grid: Vec<u8> = vec![0; MAX_X * MAX_Y];
+        Instruction {
+            op: Operation::TurnOff,
+            from: Coordinate { x: 0, y: 0 },
+            to: Coordinate { x: 10, y: 10 },
+        }
+        .execute_part2(&mut grid);
+        assert_eq!(grid.iter().fold(0 as u32, |acc, n| acc + (*n as u32)), 0);
+        Instruction {
+            op: Operation::TurnOn,
+            from: Coordinate { x: 50, y: 100 },
+            to: Coordinate { x: 550, y: 600 },
+        }
+        .execute_part2(&mut grid);
+        assert_eq!(
+            grid.iter().fold(0 as u32, |acc, n| acc + (*n as u32)),
+            251001
+        );
+        Instruction {
+            op: Operation::Toggle,
+            from: Coordinate { x: 0, y: 0 },
+            to: Coordinate { x: 499, y: 499 },
+        }
+        .execute_part2(&mut grid);
+        assert_eq!(
+            grid.iter().fold(0 as u32, |acc, n| acc + (*n as u32)),
+            751001
+        );
     }
 
     #[test]
