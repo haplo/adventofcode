@@ -1,21 +1,30 @@
 use std::collections::HashSet;
 
+type Number = u8;
+
 #[derive(Debug, PartialEq)]
 struct Board {
-    rows: Vec<HashSet<u8>>,
-    columns: Vec<HashSet<u8>>,
+    rows: Vec<HashSet<Number>>,
+    columns: Vec<HashSet<Number>>,
 }
 
-fn parse_input(input: String) -> (Vec<u8>, Vec<Board>) {
+#[derive(Clone, Debug, PartialEq)]
+struct Winner<'a> {
+    board: &'a Board,
+    draw: HashSet<Number>,
+    last_draw: Number,
+}
+
+fn parse_input(input: String) -> (Vec<Number>, Vec<Board>) {
     let mut lines = input.lines();
 
     // first line is all drawn numbers
-    let drawn_numbers: Vec<u8> = lines
+    let drawn_numbers: Vec<Number> = lines
         .next()
         .unwrap()
         .split(",")
         .into_iter()
-        .map(|x| x.parse::<u8>().expect("Expected an integer number"))
+        .map(|x| x.parse::<Number>().expect("Expected an integer number"))
         .collect();
     let mut lines = lines.skip(1);
     let mut boards = Vec::new();
@@ -31,15 +40,15 @@ fn parse_input(input: String) -> (Vec<u8>, Vec<Board>) {
 }
 
 fn parse_board(lines: Vec<&str>) -> Board {
-    let mut rows = vec![HashSet::<u8>::new(); 5];
-    let mut columns = vec![HashSet::<u8>::new(); 5];
+    let mut rows = vec![HashSet::<Number>::new(); 5];
+    let mut columns = vec![HashSet::<Number>::new(); 5];
     for (rown, line) in lines.into_iter().enumerate() {
-        let numbers: Vec<u8> = line
+        let numbers: Vec<Number> = line
             .split(" ")
             .filter(|n| *n != "")
             .map(|n| {
                 n.trim()
-                    .parse::<u8>()
+                    .parse::<Number>()
                     .expect("Expected an integer number in board definition")
             })
             .collect();
@@ -55,12 +64,12 @@ fn parse_board(lines: Vec<&str>) -> Board {
 }
 
 // true if given Board is a winner with the given drawn numbers
-fn is_winner(board: &Board, numbers: &HashSet<u8>) -> bool {
+fn is_winner(board: &Board, numbers: &HashSet<Number>) -> bool {
     board.rows.iter().any(|r| r.is_subset(&numbers))
         || board.columns.iter().any(|r| r.is_subset(&numbers))
 }
 
-fn calculate_score(board: &Board, numbers: &HashSet<u8>, last_draw: u8) -> u32 {
+fn calculate_score(board: &Board, numbers: &HashSet<Number>, last_draw: Number) -> u32 {
     let mut score: u32 = 0;
     for row in &board.rows {
         score += row
@@ -76,15 +85,34 @@ fn main() {
     let input = std::fs::read_to_string("input.txt").unwrap();
     let (all_numbers, boards) = parse_input(input);
     let mut draw = HashSet::new();
+    let mut seen_winners: HashSet<usize> = HashSet::new();
+    let mut first_winner = None;
+    let mut last_winner = None;
     for last_draw in all_numbers {
         draw.insert(last_draw);
-        for board in &boards {
-            if is_winner(&board, &draw) {
-                let score = calculate_score(&board, &draw, last_draw);
-                println!("Winner board score: {}", score);
-                return;
+        for (n, board) in boards.iter().enumerate() {
+            if is_winner(&board, &draw) && !seen_winners.contains(&n) {
+                seen_winners.insert(n);
+                last_winner = Some(Winner {
+                    board: &board,
+                    draw: draw.clone(),
+                    last_draw: last_draw,
+                });
+                if first_winner.is_none() {
+                    first_winner = last_winner.clone();
+                }
             }
         }
+    }
+    {
+        let w = first_winner.expect("No winner!");
+        let score = calculate_score(w.board, &w.draw, w.last_draw);
+        println!("First winner board score: {}", score);
+    }
+    {
+        let w = last_winner.expect("No winner!");
+        let score = calculate_score(w.board, &w.draw, w.last_draw);
+        println!("Last winner board score: {}", score);
     }
 }
 
