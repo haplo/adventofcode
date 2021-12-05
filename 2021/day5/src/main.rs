@@ -42,6 +42,7 @@ fn parse_instruction(input: &str) -> Vent {
 
 fn apply_vent(vent: &Vent, grid: &mut Grid) {
     if vent.from.x == vent.to.x {
+        // vertical
         let x = vent.from.x;
         let (from_y, to_y) = if vent.from.y < vent.to.y {
             (vent.from.y, vent.to.y)
@@ -54,6 +55,7 @@ fn apply_vent(vent: &Vent, grid: &mut Grid) {
             grid[i..j].iter_mut().for_each(|v| *v += 1);
         }
     } else if vent.from.y == vent.to.y {
+        // horizontal
         let y = vent.from.y;
         let (from_x, to_x) = if vent.from.x < vent.to.x {
             (vent.from.x, vent.to.x)
@@ -63,6 +65,23 @@ fn apply_vent(vent: &Vent, grid: &mut Grid) {
         let i = y * MAX_X + from_x;
         let j = y * MAX_X + to_x + 1;
         grid[i..j].iter_mut().for_each(|v| *v += 1);
+    } else {
+        // diagonal
+        let (mut from_x, to_x, mut from_y, to_y) = if vent.from.x < vent.to.x {
+            (vent.from.x, vent.to.x, vent.from.y, vent.to.y)
+        } else {
+            (vent.to.x, vent.from.x, vent.to.y, vent.from.y)
+        };
+        while from_x <= to_x {
+            let i = from_y * MAX_X + from_x;
+            grid[i] += 1;
+            from_x += 1;
+            if from_y < to_y {
+                from_y += 1;
+            } else {
+                from_y -= 1;
+            }
+        }
     }
 }
 
@@ -73,6 +92,8 @@ fn main() {
     for vent in vents {
         apply_vent(&vent, &mut grid);
     }
+    // this is Part 2 solution which includes diagonal lines,
+    // for Part 1 solution see Part 1 commit
     println!(
         "There are {} points with two or more vents",
         grid.iter().filter(|n| **n >= 2).count()
