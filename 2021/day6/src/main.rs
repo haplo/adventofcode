@@ -1,36 +1,72 @@
-const RESET: u8 = 6;
-const SPAWN_EXTRA: u8 = 2;
-const DAYS_TO_SIMULATE: u32 = 80;
+const RESET: usize = 6;
+const SPAWN: usize = RESET + 2;
+const DAYS_TO_SIMULATE_PART_1: u32 = 80;
+const DAYS_TO_SIMULATE_PART_2: u32 = 256;
 
-fn simulate(fishes: &mut Vec<u8>) {
-    let mut spawns: u32 = 0;
-    for f in fishes.iter_mut() {
-        if *f == 0 {
-            spawns += 1;
-            *f = RESET;
-        } else {
-            *f -= 1;
+struct Simulation {
+    fishes_per_day: Vec<u64>,
+    day: u32,
+}
+
+impl Simulation {
+    pub fn from_fishes(fishes: &Vec<usize>) -> Self {
+        let mut per_day: Vec<u64> = [0; SPAWN + 1].into_iter().collect();
+        for f in fishes {
+            per_day[*f] += 1;
+        }
+        Self {
+            day: 0,
+            fishes_per_day: per_day,
         }
     }
-    fishes.extend((0..spawns).into_iter().map(|x| RESET + SPAWN_EXTRA));
+
+    pub fn new(day: u32) -> Self {
+        Self {
+            day: day,
+            fishes_per_day: [0; SPAWN + 1].into_iter().collect(),
+        }
+    }
+
+    pub fn step(&self) -> Simulation {
+        let mut next = Simulation::new(self.day + 1);
+        for (days_until_spawn, number_of_fishes) in self.fishes_per_day.iter().enumerate() {
+            if days_until_spawn == 0 {
+                next.fishes_per_day[RESET] = *number_of_fishes;
+                next.fishes_per_day[SPAWN] = *number_of_fishes;
+            } else {
+                next.fishes_per_day[days_until_spawn - 1] += *number_of_fishes;
+            }
+        }
+        next
+    }
 }
 
 fn main() {
     let input = std::fs::read_to_string("input.txt").unwrap();
-    let mut fishes: Vec<u8> = input
+    let fishes: Vec<usize> = input
         .lines()
         .next()
         .unwrap()
         .split(",")
-        .map(|x| x.parse::<u8>().expect("Expected an integer number"))
+        .map(|x| x.parse::<usize>().expect("Expected an integer number"))
         .collect();
-    for _ in 0..DAYS_TO_SIMULATE {
-        simulate(&mut fishes);
+    let mut simulation = Simulation::from_fishes(&fishes);
+    for _ in 0..DAYS_TO_SIMULATE_PART_1 {
+        simulation = simulation.step();
     }
     println!(
         "There are {} fishes after {} days",
-        fishes.len(),
-        DAYS_TO_SIMULATE
+        simulation.fishes_per_day.iter().sum::<u64>(),
+        DAYS_TO_SIMULATE_PART_1
+    );
+    let remaining_days = DAYS_TO_SIMULATE_PART_2 - DAYS_TO_SIMULATE_PART_1;
+    for _ in 0..remaining_days {
+        simulation = simulation.step();
+    }
+    println!(
+        "There are {} fishes after {} days",
+        simulation.fishes_per_day.iter().sum::<u64>(),
+        DAYS_TO_SIMULATE_PART_2
     );
 }
 
@@ -39,29 +75,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_simulate() {
-        let mut fishes = vec![3, 4, 3, 1, 2];
-        simulate(&mut fishes);
-        assert_eq!(fishes, vec![2, 3, 2, 0, 1]);
-        simulate(&mut fishes);
-        assert_eq!(fishes, vec![1, 2, 1, 6, 0, 8]);
-        simulate(&mut fishes);
-        assert_eq!(fishes, vec![0, 1, 0, 5, 6, 7, 8]);
-        simulate(&mut fishes);
-        assert_eq!(fishes, vec![6, 0, 6, 4, 5, 6, 7, 8, 8]);
-        simulate(&mut fishes);
-        assert_eq!(fishes, vec![5, 6, 5, 3, 4, 5, 6, 7, 7, 8]);
-        simulate(&mut fishes);
-        assert_eq!(fishes, vec![4, 5, 4, 2, 3, 4, 5, 6, 6, 7]);
-        simulate(&mut fishes);
-        assert_eq!(fishes, vec![3, 4, 3, 1, 2, 3, 4, 5, 5, 6]);
-        simulate(&mut fishes);
-        assert_eq!(fishes, vec![2, 3, 2, 0, 1, 2, 3, 4, 4, 5]);
-        simulate(&mut fishes);
-        assert_eq!(fishes, vec![1, 2, 1, 6, 0, 1, 2, 3, 3, 4, 8]);
-        simulate(&mut fishes);
-        assert_eq!(fishes, vec![0, 1, 0, 5, 6, 0, 1, 2, 2, 3, 7, 8]);
-        simulate(&mut fishes);
-        assert_eq!(fishes, vec![6, 0, 6, 4, 5, 6, 0, 1, 1, 2, 6, 7, 8, 8, 8]);
+    fn test_simulation_step() {
+        let simulation = Simulation::from_fishes(&vec![3, 4, 3, 1, 2]);
+        assert_eq!(simulation.fishes_per_day, vec![0, 1, 1, 2, 1, 0, 0, 0, 0]);
+        let simulation = simulation.step();
+        assert_eq!(simulation.fishes_per_day, vec![1, 1, 2, 1, 0, 0, 0, 0, 0]);
+        let simulation = simulation.step();
+        assert_eq!(simulation.fishes_per_day, vec![1, 2, 1, 0, 0, 0, 1, 0, 1]);
+        let simulation = simulation.step();
+        assert_eq!(simulation.fishes_per_day, vec![2, 1, 0, 0, 0, 1, 1, 1, 1]);
+        let simulation = simulation.step();
+        assert_eq!(simulation.fishes_per_day, vec![1, 0, 0, 0, 1, 1, 3, 1, 2]);
+        let simulation = simulation.step();
+        assert_eq!(simulation.fishes_per_day, vec![0, 0, 0, 1, 1, 3, 2, 2, 1]);
     }
 }
