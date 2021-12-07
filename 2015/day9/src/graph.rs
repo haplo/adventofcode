@@ -3,6 +3,11 @@ use std::fmt::Display;
 
 pub type Weight = i32;
 
+pub enum Mode {
+    Shortest,
+    Longest,
+}
+
 pub struct Graph {
     labels: Vec<String>,
     matrix: Vec<Vec<Weight>>,
@@ -37,14 +42,11 @@ impl Graph {
             }
         }
         self.labels.push(label);
+        self.matrix.push(vec![0; self.matrix.len()]);
         for v in self.matrix.iter_mut() {
-            v.push(Weight::MAX);
+            v.push(0);
         }
-        let n = self.matrix.len();
-        let mut new_vertex = vec![Weight::MAX; n];
-        new_vertex.push(0);
-        self.matrix.push(new_vertex);
-        n
+        self.matrix.len() - 1
     }
 
     // calculate total Weight for the given path (sequence of indexes in matrix)
@@ -58,15 +60,28 @@ impl Graph {
     }
 
     // Find shortest path that visits all nodes
-    pub fn shortest_hamiltonian_path(&self) -> Path {
+    pub fn hamiltonian_path(&self, mode: Mode) -> Path {
         let mut best_path: Vec<usize> = vec![];
-        let mut best_weight: Weight = Weight::MAX;
+        let mut best_weight: Weight = match mode {
+            Mode::Shortest => Weight::MAX,
+            Mode::Longest => 0,
+        };
         let mut permutations = (0..self.matrix.len()).permutations(self.matrix.len());
         while let Some(path) = permutations.next() {
             let weight = self.path_weight(&path);
-            if weight < best_weight {
-                best_path = path.clone();
-                best_weight = weight;
+            match mode {
+                Mode::Shortest => {
+                    if weight < best_weight {
+                        best_path = path.clone();
+                        best_weight = weight;
+                    }
+                }
+                Mode::Longest => {
+                    if weight > best_weight {
+                        best_path = path.clone();
+                        best_weight = weight;
+                    }
+                }
             }
         }
         Path {
@@ -125,9 +140,9 @@ mod tests {
         // path_weight()
         assert_eq!(graph.path_weight(&vec![1, 0, 2]), 982);
 
-        // shortest_path()
+        // hamiltonian_path()
         assert_eq!(
-            graph.shortest_hamiltonian_path(),
+            graph.hamiltonian_path(Mode::Shortest),
             Path {
                 nodes: vec![
                     "London".to_string(),
@@ -135,6 +150,17 @@ mod tests {
                     "Belfast".to_string(),
                 ],
                 total_weight: 605
+            }
+        );
+        assert_eq!(
+            graph.hamiltonian_path(Mode::Longest),
+            Path {
+                nodes: vec![
+                    "Dublin".to_string(),
+                    "London".to_string(),
+                    "Belfast".to_string(),
+                ],
+                total_weight: 982
             }
         );
     }

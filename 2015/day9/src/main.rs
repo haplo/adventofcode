@@ -1,6 +1,6 @@
 mod graph;
 
-use graph::{Graph, Weight};
+use graph::{Graph, Mode, Weight};
 
 #[derive(Debug, Eq, PartialEq)]
 struct ParsedLine {
@@ -27,8 +27,10 @@ fn main() {
         let parsed_line = parse_line(line);
         graph.add_edge(parsed_line.from, parsed_line.to, parsed_line.weight);
     }
-    let path = graph.shortest_hamiltonian_path();
-    println!("Shortest path: {}", path);
+    let shortest_path = graph.hamiltonian_path(Mode::Shortest);
+    println!("Shortest path: {}", shortest_path);
+    let longest_path = graph.hamiltonian_path(Mode::Longest);
+    println!("Shortest path: {}", longest_path);
 }
 
 #[cfg(test)]
