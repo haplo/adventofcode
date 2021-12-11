@@ -3,7 +3,7 @@ use std::collections::HashSet;
 type Energy = u8;
 const COLS: usize = 10;
 const MAX_ENERGY: Energy = 9;
-const STEPS: u32 = 100;
+const STEPS_PART_1: u32 = 100;
 
 type Grid = Vec<Energy>;
 
@@ -111,14 +111,20 @@ fn main() {
     let input = std::fs::read_to_string("input.txt").unwrap();
     let mut simulation = Simulation::from_str(&input);
     let mut num_flashes: u32 = 0;
-    for _ in 0..STEPS {
+    loop {
         simulation.step();
         num_flashes += simulation.flashed.len() as u32;
+        if simulation.step == STEPS_PART_1 {
+            println!(
+                "There has been a total of {} flashes after {} steps",
+                num_flashes, STEPS_PART_1
+            )
+        }
+        if simulation.flashed.len() == simulation.grid.len() {
+            println!("All octopi flash at step {}", simulation.step);
+            break;
+        }
     }
-    println!(
-        "There has been a total of {} flashes after {} steps",
-        num_flashes, STEPS
-    )
 }
 
 #[cfg(test)]
