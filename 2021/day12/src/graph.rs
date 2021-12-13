@@ -32,13 +32,14 @@ impl Graph {
     }
 
     // iterator of all paths from given start to end labels
-    pub fn path_iter(&self, start: String, end: String) -> PathIterator {
+    pub fn path_iter(&self, start: String, end: String, visit_twice: bool) -> PathIterator {
         PathIterator {
             current: Path::new(),
             start: start,
             end: end,
             graph: self,
             all_previous: HashSet::new(),
+            can_visit_twice: visit_twice,
         }
     }
 }
@@ -52,6 +53,23 @@ pub struct PathIterator<'a> {
     end: String,
     graph: &'a Graph,
     all_previous: HashSet<Path>,
+    can_visit_twice: bool,
+}
+
+impl PathIterator<'_> {
+    // true if cannot visit twice or if a small cave has already been visited twice
+    fn visited_twice(&self) -> bool {
+        if !self.can_visit_twice {
+            return true;
+        }
+        for i in 2..self.current.len() {
+            let prev = &self.current[i - 1];
+            if *prev == prev.to_lowercase() && self.current[i..].contains(prev) {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 impl Iterator for PathIterator<'_> {
@@ -69,6 +87,9 @@ impl Iterator for PathIterator<'_> {
             last = self.current.pop();
         }
         'out: loop {
+            // true if current path already visits a small cave twice or if visiting twice
+            // is disallowed
+            let visited_twice = self.visited_twice();
             // Find remaining edges to try. For example if last node in current path has
             // neighbors [N1, N2, N3, N4], and last is N2, then use &[N3, N4]
             let edges = self.graph.edges.get(self.current.last().unwrap()).unwrap();
@@ -86,19 +107,22 @@ impl Iterator for PathIterator<'_> {
                         return Some(self.current.clone());
                     }
                     self.current.pop();
-                } else if *c == c.to_lowercase() && self.current.contains(c) {
+                } else if *c == self.start {
+                    // cannot go back to the beginning
+                    continue;
+                } else if *c == c.to_lowercase() && self.current.contains(c) && visited_twice {
                     // skip lowercase nodes that have already been visited in this path
                     continue;
                 } else {
-                    // explore this node edges
+                    // explore this node's edges
                     self.current.push(c.clone());
                     last = None;
                     continue 'out;
                 }
             }
-            // no more candidates to try, step back to previous node
+            // no more candidates to try, step back to previous node and keep trying
             match self.current.pop() {
-                Some(n) if n == "start" => return None,
+                Some(n) if n == self.start => return None,
                 Some(n) => {
                     last = Some(n);
                 }
@@ -113,7 +137,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_graph() {
+    fn test_graph_visit_once() {
         let mut graph = Graph::new();
         graph.add_edge("dc", "end");
         graph.add_edge("HN", "start");
@@ -162,8 +186,8 @@ mod tests {
             ])
         );
 
-        // path_iter
-        let mut path_iter = graph.path_iter("start".to_string(), "end".to_string());
+        // path_iter visiting small caves at most once
+        let mut path_iter = graph.path_iter("start".to_string(), "end".to_string(), false);
         assert_eq!(
             path_iter.next(),
             Some(vec![
@@ -208,5 +232,30 @@ mod tests {
         );
         // there are 19 paths in total
         assert_eq!(path_iter.count(), 15);
+    }
+
+    #[test]
+    fn test_graph_visit_twice() {
+        let mut graph = Graph::new();
+        graph.add_edge("fs", "end");
+        graph.add_edge("he", "DX");
+        graph.add_edge("fs", "he");
+        graph.add_edge("start", "DX");
+        graph.add_edge("pj", "DX");
+        graph.add_edge("end", "zg");
+        graph.add_edge("zg", "sl");
+        graph.add_edge("zg", "pj");
+        graph.add_edge("pj", "he");
+        graph.add_edge("RW", "he");
+        graph.add_edge("fs", "DX");
+        graph.add_edge("pj", "RW");
+        graph.add_edge("zg", "RW");
+        graph.add_edge("start", "pj");
+        graph.add_edge("he", "WI");
+        graph.add_edge("zg", "he");
+        graph.add_edge("pj", "fs");
+        graph.add_edge("start", "RW");
+        let path_iter = graph.path_iter("start".to_string(), "end".to_string(), true);
+        assert_eq!(path_iter.count(), 3509);
     }
 }
