@@ -35,6 +35,20 @@ fn apply_fold(paper: &mut Paper, fold: &Fold) {
     paper.extend(new);
 }
 
+fn display_paper(paper: &Paper) {
+    let mut stdout = BufWriter::new(io::stdout());
+    let max_x = paper.iter().map(|d| d.0).max().unwrap();
+    let max_y = paper.iter().map(|d| d.1).max().unwrap();
+    for y in 0..=max_y {
+        for x in 0..=max_x {
+            stdout
+                .write(if paper.contains(&(x, y)) { b"#" } else { b" " })
+                .unwrap();
+        }
+        stdout.write(b"\n").unwrap();
+    }
+}
+
 fn main() {
     let input = std::fs::read_to_string("input.txt").unwrap();
     let mut paper = Paper::new();
@@ -60,6 +74,11 @@ fn main() {
     }
     apply_fold(&mut paper, &folds[0]);
     println!("{} dots visible after first fold", paper.len());
+    for fold in folds[1..].iter() {
+        apply_fold(&mut paper, fold);
+    }
+    println!("\nPaper after all folds are applied:");
+    display_paper(&paper);
 }
 
 #[cfg(test)]
