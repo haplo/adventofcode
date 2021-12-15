@@ -82,7 +82,9 @@ impl Grid {
         // https://brilliant.org/wiki/dijkstras-short-path-finder/
         let mut dist = vec![u32::MAX; self.points.len()];
         dist[from] = 0;
-        let mut to_visit: HashSet<usize> = HashSet::from_iter(0..self.points.len());
+        let mut visited: HashSet<usize> = HashSet::new();
+        let mut to_visit: HashSet<usize> = HashSet::from_iter(self.adjacents(from));
+        to_visit.insert(from);
         while !to_visit.is_empty() {
             let v = to_visit
                 .iter()
@@ -90,7 +92,10 @@ impl Grid {
                 .unwrap()
                 .clone();
             to_visit.remove(&v);
-            for adj in self.adjacents(v) {
+            visited.insert(v);
+            let adjs = self.adjacents(v);
+            to_visit.extend(adjs.iter().filter(|x| !visited.contains(x)));
+            for adj in adjs {
                 let alt = dist[v] + self.points[adj];
                 if alt < dist[adj] {
                     dist[adj] = alt
