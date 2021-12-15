@@ -1,3 +1,5 @@
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
 use std::collections::HashSet;
 
 const EXTEND: usize = 5;
@@ -83,20 +85,22 @@ impl Grid {
         let mut dist = vec![u32::MAX; self.points.len()];
         dist[from] = 0;
         let mut visited: HashSet<usize> = HashSet::new();
-        let mut to_visit: HashSet<usize> = HashSet::from_iter(self.adjacents(from));
-        to_visit.insert(from);
-        while !to_visit.is_empty() {
-            let v = to_visit
+        let mut to_visit = BinaryHeap::from_iter(
+            self.adjacents(from)
                 .iter()
-                .min_by(|&&x, &&y| dist[x].cmp(&dist[y]))
-                .unwrap()
-                .clone();
-            to_visit.remove(&v);
-            visited.insert(v);
+                .map(|v| Reverse((self.points[*v], *v))),
+        );
+        to_visit.push(Reverse((0, from)));
+        while !to_visit.is_empty() {
+            let Reverse((_, v)) = to_visit.pop().unwrap();
+            if !visited.insert(v) {
+                // already visited this point
+                continue;
+            }
             let adjs = self.adjacents(v);
-            to_visit.extend(adjs.iter().filter(|x| !visited.contains(x)));
             for adj in adjs {
                 let alt = dist[v] + self.points[adj];
+                to_visit.push(Reverse((alt, adj)));
                 if alt < dist[adj] {
                     dist[adj] = alt
                 }
