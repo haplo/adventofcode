@@ -38,17 +38,17 @@ fn hits_target(target: &Area, mut vel: Velocity) -> bool {
     false
 }
 
-fn find_optimum_velocity(target: &Area) -> Velocity {
-    let mut best = Velocity { x: 1, y: 0 };
+fn find_velocities(target: &Area) -> Vec<Velocity> {
+    let mut vels = vec![];
     for x in 1..100 {
-        for y in 1..500 {
+        for y in -200..500 {
             let vel = Velocity { x: x, y: y };
-            if hits_target(&target, vel.clone()) && y > best.y {
-                best = vel;
+            if hits_target(&target, vel.clone()) {
+                vels.push(vel);
             }
         }
     }
-    best
+    vels
 }
 
 fn highest_position(vel: &Velocity) -> i32 {
@@ -76,11 +76,16 @@ fn parse_target_area(input: &str) -> Area {
 fn main() {
     let input = std::fs::read_to_string("input.txt").unwrap();
     let area = parse_target_area(&input);
-    let vel = find_optimum_velocity(&area);
-    let highest = highest_position(&vel);
+    let velocities = find_velocities(&area);
+    let best_vel = velocities.iter().max_by(|v1, v2| v1.y.cmp(&v2.y)).unwrap();
+    let highest = highest_position(best_vel);
     println!(
         "Velocity x={} y={} reachest highest point {} while hitting target area",
-        vel.x, vel.y, highest
+        best_vel.x, best_vel.y, highest
+    );
+    println!(
+        "There are {} distinct velocities that hit the target area",
+        velocities.len()
     );
 }
 
@@ -108,8 +113,124 @@ mod tests {
     }
 
     #[test]
-    fn test_find_optimum_velocity() {
-        assert_eq!(find_optimum_velocity(&TARGET), Velocity { x: 6, y: 9 });
+    fn test_find_velocities() {
+        assert_eq!(
+            find_velocities(&TARGET),
+            vec![
+                Velocity { x: 6, y: 0 },
+                Velocity { x: 6, y: 1 },
+                Velocity { x: 6, y: 2 },
+                Velocity { x: 6, y: 3 },
+                Velocity { x: 6, y: 4 },
+                Velocity { x: 6, y: 5 },
+                Velocity { x: 6, y: 6 },
+                Velocity { x: 6, y: 7 },
+                Velocity { x: 6, y: 8 },
+                Velocity { x: 6, y: 9 },
+                Velocity { x: 7, y: -1 },
+                Velocity { x: 7, y: 0 },
+                Velocity { x: 7, y: 1 },
+                Velocity { x: 7, y: 2 },
+                Velocity { x: 7, y: 3 },
+                Velocity { x: 7, y: 4 },
+                Velocity { x: 7, y: 5 },
+                Velocity { x: 7, y: 6 },
+                Velocity { x: 7, y: 7 },
+                Velocity { x: 7, y: 8 },
+                Velocity { x: 7, y: 9 },
+                Velocity { x: 8, y: -2 },
+                Velocity { x: 8, y: -1 },
+                Velocity { x: 8, y: 0 },
+                Velocity { x: 8, y: 1 },
+                Velocity { x: 9, y: -2 },
+                Velocity { x: 9, y: -1 },
+                Velocity { x: 9, y: 0 },
+                Velocity { x: 10, y: -2 },
+                Velocity { x: 10, y: -1 },
+                Velocity { x: 11, y: -4 },
+                Velocity { x: 11, y: -3 },
+                Velocity { x: 11, y: -2 },
+                Velocity { x: 11, y: -1 },
+                Velocity { x: 12, y: -4 },
+                Velocity { x: 12, y: -3 },
+                Velocity { x: 12, y: -2 },
+                Velocity { x: 13, y: -4 },
+                Velocity { x: 13, y: -3 },
+                Velocity { x: 13, y: -2 },
+                Velocity { x: 14, y: -4 },
+                Velocity { x: 14, y: -3 },
+                Velocity { x: 14, y: -2 },
+                Velocity { x: 15, y: -4 },
+                Velocity { x: 15, y: -3 },
+                Velocity { x: 15, y: -2 },
+                Velocity { x: 20, y: -10 },
+                Velocity { x: 20, y: -9 },
+                Velocity { x: 20, y: -8 },
+                Velocity { x: 20, y: -7 },
+                Velocity { x: 20, y: -6 },
+                Velocity { x: 20, y: -5 },
+                Velocity { x: 21, y: -10 },
+                Velocity { x: 21, y: -9 },
+                Velocity { x: 21, y: -8 },
+                Velocity { x: 21, y: -7 },
+                Velocity { x: 21, y: -6 },
+                Velocity { x: 21, y: -5 },
+                Velocity { x: 22, y: -10 },
+                Velocity { x: 22, y: -9 },
+                Velocity { x: 22, y: -8 },
+                Velocity { x: 22, y: -7 },
+                Velocity { x: 22, y: -6 },
+                Velocity { x: 22, y: -5 },
+                Velocity { x: 23, y: -10 },
+                Velocity { x: 23, y: -9 },
+                Velocity { x: 23, y: -8 },
+                Velocity { x: 23, y: -7 },
+                Velocity { x: 23, y: -6 },
+                Velocity { x: 23, y: -5 },
+                Velocity { x: 24, y: -10 },
+                Velocity { x: 24, y: -9 },
+                Velocity { x: 24, y: -8 },
+                Velocity { x: 24, y: -7 },
+                Velocity { x: 24, y: -6 },
+                Velocity { x: 24, y: -5 },
+                Velocity { x: 25, y: -10 },
+                Velocity { x: 25, y: -9 },
+                Velocity { x: 25, y: -8 },
+                Velocity { x: 25, y: -7 },
+                Velocity { x: 25, y: -6 },
+                Velocity { x: 25, y: -5 },
+                Velocity { x: 26, y: -10 },
+                Velocity { x: 26, y: -9 },
+                Velocity { x: 26, y: -8 },
+                Velocity { x: 26, y: -7 },
+                Velocity { x: 26, y: -6 },
+                Velocity { x: 26, y: -5 },
+                Velocity { x: 27, y: -10 },
+                Velocity { x: 27, y: -9 },
+                Velocity { x: 27, y: -8 },
+                Velocity { x: 27, y: -7 },
+                Velocity { x: 27, y: -6 },
+                Velocity { x: 27, y: -5 },
+                Velocity { x: 28, y: -10 },
+                Velocity { x: 28, y: -9 },
+                Velocity { x: 28, y: -8 },
+                Velocity { x: 28, y: -7 },
+                Velocity { x: 28, y: -6 },
+                Velocity { x: 28, y: -5 },
+                Velocity { x: 29, y: -10 },
+                Velocity { x: 29, y: -9 },
+                Velocity { x: 29, y: -8 },
+                Velocity { x: 29, y: -7 },
+                Velocity { x: 29, y: -6 },
+                Velocity { x: 29, y: -5 },
+                Velocity { x: 30, y: -10 },
+                Velocity { x: 30, y: -9 },
+                Velocity { x: 30, y: -8 },
+                Velocity { x: 30, y: -7 },
+                Velocity { x: 30, y: -6 },
+                Velocity { x: 30, y: -5 },
+            ]
+        );
     }
 
     #[test]
