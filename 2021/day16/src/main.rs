@@ -4,7 +4,13 @@ use std::u8;
 #[derive(Debug, PartialEq)]
 enum Type {
     Literal(u64),
-    Operator(Vec<Packet>),
+    OpEqual(Vec<Packet>),
+    OpGreater(Vec<Packet>),
+    OpLess(Vec<Packet>),
+    OpMax(Vec<Packet>),
+    OpMin(Vec<Packet>),
+    OpProduct(Vec<Packet>),
+    OpSum(Vec<Packet>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -15,12 +21,57 @@ struct Packet {
 
 impl Packet {
     fn total_version(&self) -> u32 {
-        return match &self.ptype {
+        match &self.ptype {
             Type::Literal(_) => self.version.into(),
-            Type::Operator(packets) => {
+            Type::OpEqual(packets)
+            | Type::OpGreater(packets)
+            | Type::OpLess(packets)
+            | Type::OpMax(packets)
+            | Type::OpMin(packets)
+            | Type::OpProduct(packets)
+            | Type::OpSum(packets) => {
                 self.version as u32 + packets.iter().map(|p| p.total_version()).sum::<u32>()
             }
-        };
+        }
+    }
+
+    fn value(&self) -> u64 {
+        match &self.ptype {
+            Type::Literal(v) => *v,
+            Type::OpEqual(packets) => {
+                if packets[0].value() == packets[1].value() {
+                    1
+                } else {
+                    0
+                }
+            }
+            Type::OpGreater(packets) => {
+                if packets[0].value() > packets[1].value() {
+                    1
+                } else {
+                    0
+                }
+            }
+            Type::OpLess(packets) => {
+                if packets[0].value() < packets[1].value() {
+                    1
+                } else {
+                    0
+                }
+            }
+            Type::OpMax(packets) => packets
+                .iter()
+                .map(|p| p.value())
+                .max()
+                .expect("Max operator packet with no subpackets"),
+            Type::OpMin(packets) => packets
+                .iter()
+                .map(|p| p.value())
+                .min()
+                .expect("Min operator packet with no subpackets"),
+            Type::OpProduct(packets) => packets.iter().fold(1, |acc, p| acc * p.value()),
+            Type::OpSum(packets) => packets.iter().fold(0, |acc, p| acc + p.value()),
+        }
     }
 }
 
@@ -65,7 +116,7 @@ impl<'a> BinaryIter<'a> {
     }
 
     // reads the next n bits
-    fn group(&mut self, mut n: usize) -> Option<Vec<char>> {
+    fn group(&mut self, n: usize) -> Option<Vec<char>> {
         let mut bits: Vec<char> = vec![];
         let mut i = n;
         while i > 0 {
@@ -128,7 +179,7 @@ impl<'a> PacketIter<'a> {
         Type::Literal(v)
     }
 
-    fn parse_operator(&mut self) -> Type {
+    fn parse_operator(&mut self, ptype: u8) -> Type {
         let mut packets: Vec<Packet> = vec![];
         let was_main_packet = self.main_packet;
         // avoid aligning bits when parsing subpackets
@@ -154,7 +205,16 @@ impl<'a> PacketIter<'a> {
         if self.main_packet {
             self.bits.align();
         }
-        Type::Operator(packets)
+        match ptype {
+            0 => Type::OpSum(packets),
+            1 => Type::OpProduct(packets),
+            2 => Type::OpMin(packets),
+            3 => Type::OpMax(packets),
+            5 => Type::OpGreater(packets),
+            6 => Type::OpLess(packets),
+            7 => Type::OpEqual(packets),
+            _ => panic!("Invalid packet type for Operator packet"),
+        }
     }
 }
 
@@ -164,7 +224,7 @@ impl Iterator for PacketIter<'_> {
         if let Some(version) = self.bits.combine(3) {
             let ptype = match self.bits.combine(3) {
                 Some(4) => self.parse_literal(),
-                Some(_) => self.parse_operator(),
+                Some(t) => self.parse_operator(t as u8),
                 _ => panic!("Invalid package type"),
             };
             return Some(Packet {
@@ -192,7 +252,8 @@ fn main() {
     println!(
         "Sum of all version numbers: {}",
         packets.iter().map(|p| p.total_version()).sum::<u32>()
-    )
+    );
+    println!("Final value: {}", packets[0].value());
 }
 
 #[cfg(test)]
@@ -237,7 +298,7 @@ mod tests {
             "38006F45291200".packets().collect::<Vec<Packet>>(),
             vec![Packet {
                 version: 1,
-                ptype: Type::Operator(vec![
+                ptype: Type::OpLess(vec![
                     Packet {
                         version: 6,
                         ptype: Type::Literal(10)
@@ -253,7 +314,7 @@ mod tests {
             "EE00D40C823060".packets().collect::<Vec<Packet>>(),
             vec![Packet {
                 version: 7,
-                ptype: Type::Operator(vec![
+                ptype: Type::OpMax(vec![
                     Packet {
                         version: 2,
                         ptype: Type::Literal(1)
@@ -280,7 +341,7 @@ mod tests {
         assert_eq!(literal.total_version(), 6);
         let operator = Packet {
             version: 7,
-            ptype: Type::Operator(vec![
+            ptype: Type::OpSum(vec![
                 Packet {
                     version: 2,
                     ptype: Type::Literal(1),
@@ -296,5 +357,219 @@ mod tests {
             ]),
         };
         assert_eq!(operator.total_version(), 14);
+    }
+
+    #[test]
+    fn test_value_equal() {
+        assert_eq!(
+            Packet {
+                version: 0,
+                ptype: Type::OpEqual(vec![
+                    Packet {
+                        version: 2,
+                        ptype: Type::Literal(1),
+                    },
+                    Packet {
+                        version: 4,
+                        ptype: Type::Literal(2),
+                    },
+                ])
+            }
+            .value(),
+            0
+        );
+        assert_eq!(
+            Packet {
+                version: 0,
+                ptype: Type::OpEqual(vec![
+                    Packet {
+                        version: 4,
+                        ptype: Type::Literal(2),
+                    },
+                    Packet {
+                        version: 2,
+                        ptype: Type::Literal(2),
+                    },
+                ])
+            }
+            .value(),
+            1
+        );
+    }
+
+    #[test]
+    fn test_value_greater() {
+        assert_eq!(
+            Packet {
+                version: 0,
+                ptype: Type::OpGreater(vec![
+                    Packet {
+                        version: 2,
+                        ptype: Type::Literal(1),
+                    },
+                    Packet {
+                        version: 4,
+                        ptype: Type::Literal(2),
+                    },
+                ])
+            }
+            .value(),
+            0
+        );
+        assert_eq!(
+            Packet {
+                version: 0,
+                ptype: Type::OpGreater(vec![
+                    Packet {
+                        version: 4,
+                        ptype: Type::Literal(2),
+                    },
+                    Packet {
+                        version: 2,
+                        ptype: Type::Literal(1),
+                    },
+                ])
+            }
+            .value(),
+            1
+        );
+    }
+
+    #[test]
+    fn test_value_less() {
+        assert_eq!(
+            Packet {
+                version: 0,
+                ptype: Type::OpLess(vec![
+                    Packet {
+                        version: 2,
+                        ptype: Type::Literal(1),
+                    },
+                    Packet {
+                        version: 4,
+                        ptype: Type::Literal(2),
+                    },
+                ])
+            }
+            .value(),
+            1
+        );
+        assert_eq!(
+            Packet {
+                version: 0,
+                ptype: Type::OpLess(vec![
+                    Packet {
+                        version: 4,
+                        ptype: Type::Literal(2),
+                    },
+                    Packet {
+                        version: 2,
+                        ptype: Type::Literal(1),
+                    },
+                ])
+            }
+            .value(),
+            0
+        );
+    }
+
+    #[test]
+    fn test_value_max() {
+        assert_eq!(
+            Packet {
+                version: 0,
+                ptype: Type::OpMax(vec![
+                    Packet {
+                        version: 2,
+                        ptype: Type::Literal(1),
+                    },
+                    Packet {
+                        version: 4,
+                        ptype: Type::Literal(2),
+                    },
+                    Packet {
+                        version: 1,
+                        ptype: Type::Literal(4),
+                    },
+                ])
+            }
+            .value(),
+            4
+        );
+    }
+
+    #[test]
+    fn test_value_min() {
+        assert_eq!(
+            Packet {
+                version: 0,
+                ptype: Type::OpMin(vec![
+                    Packet {
+                        version: 2,
+                        ptype: Type::Literal(1),
+                    },
+                    Packet {
+                        version: 4,
+                        ptype: Type::Literal(2),
+                    },
+                    Packet {
+                        version: 1,
+                        ptype: Type::Literal(4),
+                    },
+                ])
+            }
+            .value(),
+            1
+        );
+    }
+
+    #[test]
+    fn test_value_product() {
+        assert_eq!(
+            Packet {
+                version: 0,
+                ptype: Type::OpProduct(vec![
+                    Packet {
+                        version: 2,
+                        ptype: Type::Literal(1),
+                    },
+                    Packet {
+                        version: 4,
+                        ptype: Type::Literal(2),
+                    },
+                    Packet {
+                        version: 1,
+                        ptype: Type::Literal(4),
+                    },
+                ])
+            }
+            .value(),
+            8
+        );
+    }
+
+    #[test]
+    fn test_value_sum() {
+        assert_eq!(
+            Packet {
+                version: 0,
+                ptype: Type::OpSum(vec![
+                    Packet {
+                        version: 2,
+                        ptype: Type::Literal(1),
+                    },
+                    Packet {
+                        version: 4,
+                        ptype: Type::Literal(2),
+                    },
+                    Packet {
+                        version: 1,
+                        ptype: Type::Literal(4),
+                    },
+                ])
+            }
+            .value(),
+            7
+        );
     }
 }
